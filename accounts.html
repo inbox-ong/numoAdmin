@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Numo Admin - Saldos</title>
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="p-4 sm:p-6">
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      <section class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-xs uppercase tracking-wide text-slate-400">Saldos</p>
+            <h2 class="text-lg font-semibold text-slate-900">Consultar saldo</h2>
+          </div>
+          <button id="check-balance" class="bg-primary text-white px-4 py-2 rounded-lg shadow-sm">Consultar</button>
+        </div>
+        <div class="form-row"><label>Participant ID</label><input id="bal-part" value="bank-123" class="w-full"></div>
+        <div class="form-row"><label>Moeda</label><input id="bal-currency" value="BRL" class="w-full"></div>
+        <pre id="bal-result" class="code min-h-[140px] rounded-lg"></pre>
+      </section>
+
+      <section class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-xs uppercase tracking-wide text-slate-400">Contas</p>
+            <h2 class="text-lg font-semibold text-slate-900">Criar conta</h2>
+          </div>
+          <button id="create-account" class="bg-primary text-white px-4 py-2 rounded-lg shadow-sm">Criar</button>
+        </div>
+        <div class="form-row"><label>Participant ID</label><input id="acc-part" class="w-full"></div>
+        <div class="form-row"><label>Moeda</label><input id="acc-currency" value="BRL" class="w-full"></div>
+        <div class="form-row"><label>Saldo inicial (centavos)</label><input id="acc-balance" type="number" value="0" class="w-full"></div>
+        <pre id="acc-result" class="code min-h-[140px] rounded-lg"></pre>
+      </section>
+    </div>
+  </main>
+
+  <script src="common.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      upgradeToTailAdmin({ pageId: "accounts", title: "Saldos e Contas", subtitle: "Consulta e criação de contas" });
+      ensureAuth();
+      loadConfigFields();
+      setNavActive("accounts");
+
+      const outBal = document.getElementById("bal-result");
+      const outAcc = document.getElementById("acc-result");
+
+      document.getElementById("check-balance").onclick = async () => {
+        const pid = document.getElementById("bal-part").value.trim();
+        const cur = document.getElementById("bal-currency").value.trim();
+        if (!pid || !cur) { outBal.textContent = "Informe participant_id e currency"; return; }
+        outBal.textContent = "Consultando...";
+        try {
+          const res = await apiFetch(`${state.coreUrl}/accounts?participant_id=${encodeURIComponent(pid)}&currency=${encodeURIComponent(cur)}`);
+          const data = await readBody(res);
+          outBal.textContent = JSON.stringify({ status: res.status, ok: res.ok, body: data }, null, 2);
+        } catch (e) { outBal.textContent = e.message; }
+      };
+
+      document.getElementById("create-account").onclick = async () => {
+        const payload = {
+          participant_id: document.getElementById("acc-part").value.trim(),
+          currency: document.getElementById("acc-currency").value.trim(),
+          balance_cents: Number(document.getElementById("acc-balance").value),
+        };
+        if (!payload.participant_id || !payload.currency) { outAcc.textContent = "Campos obrigatórios"; return; }
+        outAcc.textContent = "Criando...";
+        try {
+          const res = await apiFetch(`${state.coreUrl}/accounts`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          const data = await readBody(res);
+          outAcc.textContent = JSON.stringify({ status: res.status, ok: res.ok, body: data }, null, 2);
+        } catch (e) { outAcc.textContent = e.message; }
+      };
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Numo Admin - Ledger</title>
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="p-4 sm:p-6 space-y-6">
+    <section class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <p class="text-xs uppercase tracking-wide text-slate-400">Ledger</p>
+          <h2 class="text-lg font-semibold text-slate-900">Filtros</h2>
+        </div>
+        <div class="flex gap-2">
+          <button id="load-entries" class="bg-primary text-white px-4 py-2 rounded-lg shadow-sm">Listar lançamentos</button>
+          <button id="load-balance" class="bg-slate-100 text-slate-800 px-4 py-2 rounded-lg border border-slate-200">Saldo</button>
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="space-y-3">
+          <div class="form-row"><label>Participant</label><input id="led-part" class="w-full"></div>
+          <div class="form-row"><label>Conta</label><input id="led-acc" class="w-full"></div>
+          <div class="form-row"><label>Moeda</label><input id="led-cur" value="BRL" class="w-full"></div>
+          <div class="form-row"><label>Tx ID</label><input id="led-tx" class="w-full"></div>
+          <div class="form-row"><label>D/C</label><select id="led-dc" class="w-full"><option value="">Todos</option><option value="D">Débito</option><option value="C">Crédito</option></select></div>
+          <div class="form-row"><label>From (RFC3339)</label><input id="led-from" placeholder="2024-01-01T00:00:00Z" class="w-full"></div>
+          <div class="form-row"><label>To (RFC3339)</label><input id="led-to" placeholder="2024-12-31T23:59:59Z" class="w-full"></div>
+          <div class="form-row"><label>Limit</label><input id="led-limit" type="number" value="50" class="w-full"></div>
+          <div class="form-row"><label>Offset</label><input id="led-offset" type="number" value="0" class="w-full"></div>
+        </div>
+        <div>
+          <h3 class="text-sm font-semibold text-slate-800 mb-2">Resultado</h3>
+          <pre id="led-result" class="code min-h-[200px] rounded-lg"></pre>
+        </div>
+      </div>
+    </section>
+
+    <section class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <p class="text-xs uppercase tracking-wide text-slate-400">Snapshots</p>
+          <h2 class="text-lg font-semibold text-slate-900">Gerenciar snapshots</h2>
+        </div>
+        <div class="flex gap-2">
+          <button id="create-snap" class="bg-primary text-white px-4 py-2 rounded-lg shadow-sm">Criar snapshot</button>
+          <button id="list-snap" class="bg-slate-100 text-slate-800 px-4 py-2 rounded-lg border border-slate-200">Listar</button>
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="space-y-3">
+          <div class="form-row"><label>Participant</label><input id="snap-part" class="w-full"></div>
+          <div class="form-row"><label>Conta</label><input id="snap-acc" class="w-full"></div>
+          <div class="form-row"><label>Moeda</label><input id="snap-cur" value="BRL" class="w-full"></div>
+          <div class="form-row"><label>Limit</label><input id="snap-limit" type="number" value="20" class="w-full"></div>
+          <div class="form-row"><label>Offset</label><input id="snap-offset" type="number" value="0" class="w-full"></div>
+        </div>
+        <div>
+          <h3 class="text-sm font-semibold text-slate-800 mb-2">Snapshots</h3>
+          <pre id="snap-result" class="code min-h-[200px] rounded-lg"></pre>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="common.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      upgradeToTailAdmin({ pageId: "ledger", title: "Ledger", subtitle: "Consultar lançamentos, saldo e snapshots" });
+      ensureAuth();
+      loadConfigFields();
+      setNavActive("ledger");
+      const out = document.getElementById("led-result");
+      const snapOut = document.getElementById("snap-result");
+
+      document.getElementById("load-entries").onclick = async () => {
+        out.textContent = "Consultando lançamentos...";
+        const params = new URLSearchParams();
+        const part = document.getElementById("led-part").value.trim();
+        const cur = document.getElementById("led-cur").value.trim();
+        const acc = document.getElementById("led-acc").value.trim();
+        const tx = document.getElementById("led-tx").value.trim();
+        const dc = document.getElementById("led-dc").value;
+        const lim = document.getElementById("led-limit").value;
+        const off = document.getElementById("led-offset").value;
+        const from = document.getElementById("led-from").value.trim();
+        const to = document.getElementById("led-to").value.trim();
+        if (part) params.set("participant_id", part);
+        if (cur) params.set("currency", cur);
+        if (acc) params.set("account_id", acc);
+        if (tx) params.set("transaction_id", tx);
+        if (dc) params.set("dc", dc);
+        if (lim) params.set("limit", lim);
+        if (off) params.set("offset", off);
+        if (from) params.set("from", from);
+        if (to) params.set("to", to);
+        try {
+          const res = await apiFetch(`${state.ledgerUrl}/entries?` + params.toString());
+          const data = await readBody(res);
+          out.textContent = JSON.stringify({ status: res.status, ok: res.ok, body: data }, null, 2);
+          logAudit("ledger:entries", { participant: part, currency: cur, account: acc, tx, dc, limit: lim, offset: off });
+        } catch (e) { out.textContent = e.message; }
+      };
+
+      document.getElementById("load-balance").onclick = async () => {
+        const part = document.getElementById("led-part").value.trim();
+        const acc = document.getElementById("led-acc").value.trim();
+        const cur = document.getElementById("led-cur").value.trim();
+        if (!part || !acc || !cur) { out.textContent = "Informe participant_id, account_id, currency"; return; }
+        out.textContent = "Consultando saldo...";
+        try {
+          const res = await apiFetch(`${state.ledgerUrl}/balance?participant_id=${encodeURIComponent(part)}&account_id=${encodeURIComponent(acc)}&currency=${encodeURIComponent(cur)}`);
+          const data = await readBody(res);
+          out.textContent = JSON.stringify({ status: res.status, ok: res.ok, body: data }, null, 2);
+          logAudit("ledger:balance", { participant: part, account: acc, currency: cur });
+        } catch (e) { out.textContent = e.message; }
+      };
+
+      document.getElementById("create-snap").onclick = async () => {
+        const payload = {
+          participant_id: document.getElementById("snap-part").value.trim(),
+          account_id: document.getElementById("snap-acc").value.trim(),
+          currency: document.getElementById("snap-cur").value.trim(),
+        };
+        snapOut.textContent = "Criando snapshot...";
+        if (!payload.participant_id || !payload.account_id || !payload.currency) {
+          snapOut.textContent = "Campos obrigatórios: participant_id, account_id, currency";
+          return;
+        }
+        try {
+          const res = await apiFetch(`${state.ledgerUrl}/snapshots`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          const data = await readBody(res);
+          snapOut.textContent = JSON.stringify({ status: res.status, ok: res.ok, body: data }, null, 2);
+          logAudit("ledger:snapshot_create", payload);
+        } catch (e) { snapOut.textContent = e.message; }
+      };
+
+      document.getElementById("list-snap").onclick = async () => {
+        const params = new URLSearchParams();
+        const part = document.getElementById("snap-part").value.trim();
+        const cur = document.getElementById("snap-cur").value.trim();
+        const lim = document.getElementById("snap-limit").value;
+        const off = document.getElementById("snap-offset").value;
+        if (part) params.set("participant_id", part);
+        if (cur) params.set("currency", cur);
+        if (lim) params.set("limit", lim);
+        if (off) params.set("offset", off);
+        snapOut.textContent = "Listando snapshots...";
+        try {
+          const res = await apiFetch(`${state.ledgerUrl}/snapshots?` + params.toString());
+          const data = await readBody(res);
+          snapOut.textContent = JSON.stringify({ status: res.status, ok: res.ok, body: data }, null, 2);
+          logAudit("ledger:snapshot_list", { participant: part, currency: cur, limit: lim, offset: off });
+        } catch (e) { snapOut.textContent = e.message; }
+      };
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Numo Admin - Transferência via Key</title>
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="p-4 sm:p-6">
+    <section class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <p class="text-xs uppercase tracking-wide text-slate-400">Chaves</p>
+          <h2 class="text-lg font-semibold text-slate-900">Transferir usando Key</h2>
+        </div>
+        <button id="send-key-payment" class="bg-primary text-white px-4 py-2 rounded-lg shadow-sm">Enviar</button>
+      </div>
+      <div class="form-grid">
+        <div class="space-y-3">
+          <div class="form-row"><label>Pagador (from)</label><input id="kpay-from" value="bank-123" class="w-full"></div>
+          <div class="form-row"><label>Valor (centavos)</label><input id="kpay-amount" type="number" value="2500" class="w-full"></div>
+          <div class="form-row"><label>Moeda</label><input id="kpay-currency" value="BRL" class="w-full"></div>
+          <div class="form-row"><label>Key Type</label><input id="kpay-type" value="PHONE" class="w-full"></div>
+          <div class="form-row"><label>Key Value</label><input id="kpay-value" class="w-full"></div>
+          <div class="form-row"><label>External ID (opcional)</label><input id="kpay-ext" class="w-full"></div>
+        </div>
+        <div>
+          <h3 class="text-sm font-semibold text-slate-800 mb-2">Resultado</h3>
+          <pre id="kpay-result" class="code min-h-[180px] rounded-lg"></pre>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="common.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      upgradeToTailAdmin({ pageId: "pay-key", title: "Transferência via Key", subtitle: "Resolve key no Keys e paga no Core" });
+      ensureAuth();
+      loadConfigFields();
+      setNavActive("pay-key");
+      const out = document.getElementById("kpay-result");
+      document.getElementById("send-key-payment").onclick = async () => {
+        const resolvePayload = {
+          key_value: document.getElementById("kpay-value").value.trim(),
+          key_type: document.getElementById("kpay-type").value.trim(),
+        };
+        const payPayload = {
+          from_participant_id: document.getElementById("kpay-from").value.trim(),
+          amount_cents: Number(document.getElementById("kpay-amount").value),
+          currency: document.getElementById("kpay-currency").value.trim(),
+          external_id: document.getElementById("kpay-ext").value.trim() || undefined,
+        };
+        out.textContent = "Resolvendo key...";
+        try {
+          const res = await apiFetch(`${state.keysUrl}/keys/resolve?key_value=${encodeURIComponent(resolvePayload.key_value)}&key_type=${encodeURIComponent(resolvePayload.key_type)}`);
+          const data = await readBody(res);
+          if (!res.ok) { out.textContent = JSON.stringify({ status: res.status, ok: res.ok, body: data }, null, 2); return; }
+          payPayload.to_participant_id = data.participant_id;
+          const payRes = await apiFetch(`${state.coreUrl}/payments`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payPayload),
+          });
+          const payData = await readBody(payRes);
+          out.textContent = JSON.stringify({ resolved: data, payment: { status: payRes.status, ok: payRes.ok, body: payData } }, null, 2);
+        } catch (e) { out.textContent = e.message; }
+      };
+    });
+  </script>
+</body>
+</html>

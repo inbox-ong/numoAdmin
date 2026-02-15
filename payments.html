@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Numo Admin - Transferências</title>
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="p-4 sm:p-6">
+    <section class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <p class="text-xs uppercase tracking-wide text-slate-400">Transferências</p>
+          <h2 class="text-lg font-semibold text-slate-900">Transferir</h2>
+        </div>
+        <button id="send-payment" class="bg-primary text-white px-4 py-2 rounded-lg shadow-sm">Enviar</button>
+      </div>
+      <div class="form-grid">
+        <div class="space-y-3">
+          <div class="form-row"><label>Pagador (from)</label><input id="pay-from" value="bank-123" class="w-full"></div>
+          <div class="form-row"><label>Recebedor (to)</label><input id="pay-to" value="fin-987" class="w-full"></div>
+          <div class="form-row"><label>Valor (centavos)</label><input id="pay-amount" type="number" value="2500" class="w-full"></div>
+          <div class="form-row"><label>Moeda</label><input id="pay-currency" value="BRL" class="w-full"></div>
+          <div class="form-row"><label>External ID (opcional)</label><input id="pay-ext" class="w-full"></div>
+        </div>
+        <div>
+          <h3 class="text-sm font-semibold text-slate-800 mb-2">Resultado</h3>
+          <pre id="pay-result" class="code min-h-[180px] rounded-lg"></pre>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="common.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      upgradeToTailAdmin({ pageId: "payments", title: "Transferências", subtitle: "Pagamentos entre participantes" });
+      ensureAuth();
+      loadConfigFields();
+      setNavActive("payments");
+      const out = document.getElementById("pay-result");
+      document.getElementById("send-payment").onclick = async () => {
+        const payload = {
+          from_participant_id: document.getElementById("pay-from").value.trim(),
+          to_participant_id: document.getElementById("pay-to").value.trim(),
+          amount_cents: Number(document.getElementById("pay-amount").value),
+          currency: document.getElementById("pay-currency").value.trim(),
+          external_id: document.getElementById("pay-ext").value.trim() || undefined,
+        };
+        out.textContent = "Enviando...";
+        try {
+          const res = await apiFetch(`${state.coreUrl}/payments`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+          const data = await readBody(res);
+          out.textContent = JSON.stringify({ status: res.status, ok: res.ok, body: data }, null, 2);
+        } catch (e) { out.textContent = e.message; }
+      };
+    });
+  </script>
+</body>
+</html>

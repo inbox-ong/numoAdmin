@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Numo Admin - Auditoria</title>
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="p-4 sm:p-6">
+    <section class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <p class="text-xs uppercase tracking-wide text-slate-400">Auditoria</p>
+          <h2 class="text-lg font-semibold text-slate-900">Logs</h2>
+        </div>
+        <div class="flex gap-2">
+          <button id="refresh-log" class="bg-primary text-white px-3 py-2 rounded-lg shadow-sm">Atualizar</button>
+          <button id="clear-log" class="bg-slate-100 text-slate-800 px-3 py-2 rounded-lg border border-slate-200">Limpar</button>
+          <button id="copy-log" class="bg-slate-100 text-slate-800 px-3 py-2 rounded-lg border border-slate-200">Copiar JSON</button>
+        </div>
+      </div>
+      <div class="overflow-auto">
+        <table class="min-w-full text-sm">
+          <thead class="bg-slate-50 text-slate-600"><tr><th class="px-3 py-2 text-left">Quando</th><th class="px-3 py-2 text-left">Ação</th><th class="px-3 py-2 text-left">Detalhes</th></tr></thead>
+          <tbody id="audit-body" class="divide-y divide-slate-200"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script src="common.js"></script>
+  <script>
+    function renderLogs() {
+      const tbody = document.getElementById("audit-body");
+      fetch("/api/audit").then(r => r.json()).then((logs) => {
+        if (!logs.length) {
+          tbody.innerHTML = "<tr><td colspan='3'>Sem eventos</td></tr>";
+          return;
+        }
+        tbody.innerHTML = logs.map(l => `<tr><td>${new Date(l.at).toLocaleString()}</td><td>${l.action}</td><td><pre class="code">${JSON.stringify(l.detail || {}, null, 2)}</pre></td></tr>`).join("");
+        localStorage.setItem("adminAuditLog", JSON.stringify(logs)); // sincroniza local fallback
+      }).catch(() => {
+        const logs = getAuditLogs();
+        if (!logs.length) {
+          tbody.innerHTML = "<tr><td colspan='3'>Sem eventos (offline)</td></tr>";
+          return;
+        }
+        tbody.innerHTML = logs.map(l => `<tr><td>${new Date(l.at).toLocaleString()}</td><td>${l.action}</td><td><pre class="code">${JSON.stringify(l.detail || {}, null, 2)}</pre></td></tr>`).join("");
+      });
+    }
+    document.addEventListener("DOMContentLoaded", () => {
+      upgradeToTailAdmin({ pageId: "audit", title: "Auditoria", subtitle: "Ações registradas no painel e no backend" });
+      ensureAuth();
+      setNavActive("audit");
+      renderLogs();
+      document.getElementById("refresh-log").onclick = renderLogs;
+      document.getElementById("clear-log").onclick = () => {
+        fetch("/api/audit", { method: "DELETE" }).then(renderLogs).catch(() => {
+          localStorage.removeItem("adminAuditLog"); renderLogs();
+        });
+      };
+      document.getElementById("copy-log").onclick = async () => {
+        const logs = await fetch("/api/audit").then(r => r.json()).catch(() => getAuditLogs());
+        navigator.clipboard.writeText(JSON.stringify(logs, null, 2));
+      };
+    });
+  </script>
+</body>
+</html>

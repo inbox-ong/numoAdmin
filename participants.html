@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Numo Admin - Participantes</title>
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="p-4 sm:p-6">
+    <div class="space-y-6">
+      <section class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <p class="text-xs uppercase tracking-wide text-slate-400">Participantes</p>
+            <h2 class="text-lg font-semibold text-slate-900">Lista</h2>
+          </div>
+          <div class="flex gap-2">
+            <button id="load-participants" class="bg-slate-100 text-slate-800 px-4 py-2 rounded-lg border border-slate-200">Atualizar</button>
+            <button id="new-participant" class="bg-primary text-white px-4 py-2 rounded-lg shadow-sm">Incluir</button>
+          </div>
+        </div>
+        <div class="overflow-auto">
+          <table id="participants-table" class="min-w-full text-sm">
+            <thead class="bg-slate-50 text-slate-600">
+              <tr><th class="px-3 py-2 text-left">ID</th><th class="px-3 py-2 text-left">Status</th><th class="px-3 py-2 text-left">Reg</th><th class="px-3 py-2 text-left">Nome</th></tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h2 id="form-title" class="text-lg font-semibold text-slate-900">Novo participante</h2>
+          <div class="flex gap-2">
+            <button id="save-participant" class="bg-primary text-white px-4 py-2 rounded-lg shadow-sm">Salvar</button>
+            <button id="cancel-participant" class="bg-slate-100 text-slate-800 px-4 py-2 rounded-lg border border-slate-200">Cancelar</button>
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="space-y-3">
+            <div class="form-row"><label>ID</label><input id="p-id" class="w-full"></div>
+            <div class="form-row"><label>Regulatory ID</label><input id="p-reg" class="w-full"></div>
+            <div class="form-row"><label>Nome</label><input id="p-name" class="w-full"></div>
+            <div class="form-row"><label>Short name</label><input id="p-short" class="w-full"></div>
+            <div class="form-row">
+              <label>Status</label>
+              <select id="p-status" class="w-full">
+                <option>ACTIVE</option>
+                <option>TEST</option>
+                <option>SUSPENDED</option>
+              </select>
+            </div>
+          </div>
+          <div class="space-y-4">
+            <div>
+              <h3 class="text-sm font-semibold text-slate-800 mb-2">Permissões</h3>
+              <div class="checks">
+                <label><input type="checkbox" id="p-can-send"> Pode enviar</label>
+                <label><input type="checkbox" id="p-can-receive"> Pode receber</label>
+                <label><input type="checkbox" id="p-can-init"> Pode iniciar</label>
+                <label><input type="checkbox" id="p-can-query"> Pode consultar</label>
+              </div>
+            </div>
+            <div class="space-y-2">
+              <h3 class="text-sm font-semibold text-slate-800">Conta (opcional)</h3>
+              <div class="form-row"><label>Moeda</label><input id="p-acc-currency" value="BRL" class="w-full"></div>
+              <div class="form-row"><label>Saldo inicial (centavos)</label><input id="p-acc-balance" type="number" value="1000000" class="w-full"></div>
+            </div>
+          </div>
+          <div>
+            <h3 class="text-sm font-semibold text-slate-800 mb-2">Resultado</h3>
+            <pre id="p-result" class="code min-h-[160px] rounded-lg"></pre>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script src="common.js"></script>
+  <script src="participants.js"></script>
+</body>
+</html>

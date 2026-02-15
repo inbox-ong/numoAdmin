@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Numo Admin - Keys</title>
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="p-4 sm:p-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+      <section class="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 space-y-3">
+        <div class="flex items-center justify-between"><h2 class="font-semibold text-slate-900">Registrar</h2><button id="register-key" class="bg-primary text-white px-3 py-2 rounded-lg shadow-sm">Registrar</button></div>
+        <div class="form-row"><label>Key Value</label><input id="key-value" class="w-full"></div>
+        <div class="form-row"><label>Key Type</label><input id="key-type" value="PHONE" class="w-full"></div>
+        <div class="form-row"><label>Participant ID</label><input id="key-part" class="w-full"></div>
+        <div class="form-row"><label>Account ID</label><input id="key-account" class="w-full"></div>
+      </section>
+
+      <section class="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 space-y-3">
+        <div class="flex items-center justify-between"><h2 class="font-semibold text-slate-900">Resolver</h2><button id="resolve-key" class="bg-primary text-white px-3 py-2 rounded-lg shadow-sm">Resolver</button></div>
+        <div class="form-row"><label>Key Value</label><input id="res-value" class="w-full"></div>
+        <div class="form-row"><label>Key Type</label><input id="res-type" value="PHONE" class="w-full"></div>
+      </section>
+
+      <section class="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 space-y-3">
+        <div class="flex items-center justify-between"><h2 class="font-semibold text-slate-900">Portar</h2><button id="port-key" class="bg-primary text-white px-3 py-2 rounded-lg shadow-sm">Portar</button></div>
+        <div class="form-row"><label>Key Value</label><input id="port-value" class="w-full"></div>
+        <div class="form-row"><label>Key Type</label><input id="port-type" value="PHONE" class="w-full"></div>
+        <div class="form-row"><label>Novo participant</label><input id="port-part" class="w-full"></div>
+        <div class="form-row"><label>Nova conta</label><input id="port-account" class="w-full"></div>
+      </section>
+
+      <section class="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 space-y-3">
+        <div class="flex items-center justify-between"><h2 class="font-semibold text-slate-900">Deletar</h2><button id="delete-key" class="bg-primary text-white px-3 py-2 rounded-lg shadow-sm">Deletar</button></div>
+        <div class="form-row"><label>Key Value</label><input id="del-value" class="w-full"></div>
+        <div class="form-row"><label>Key Type</label><input id="del-type" value="PHONE" class="w-full"></div>
+      </section>
+
+      <section class="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 space-y-3 col-span-full">
+        <div class="flex items-center justify-between"><h2 class="font-semibold text-slate-900">Resultado</h2></div>
+        <pre id="keys-result" class="code min-h-[180px] rounded-lg"></pre>
+      </section>
+    </div>
+  </main>
+
+  <script src="common.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      upgradeToTailAdmin({ pageId: "keys", title: "Keys", subtitle: "Registrar, resolver, portar, deletar" });
+      ensureAuth();
+      loadConfigFields();
+      setNavActive("keys");
+      const out = document.getElementById("keys-result");
+
+      document.getElementById("register-key").onclick = async () => {
+        const payload = {
+          key_value: document.getElementById("key-value").value.trim(),
+          key_type: document.getElementById("key-type").value.trim(),
+          participant_id: document.getElementById("key-part").value.trim(),
+          account_id: document.getElementById("key-account").value.trim(),
+        };
+        out.textContent = "Registrando...";
+        try {
+          const res = await apiFetch(`${state.keysUrl}/keys/register`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+          const data = await readBody(res);
+          out.textContent = JSON.stringify({ status: res.status, ok: res.ok, body: data }, null, 2);
+          logAudit("keys:register", { value: payload.key_value, type: payload.key_type });
+        } catch (e) { out.textContent = e.message; }
+      };
+
+      document.getElementById("resolve-key").onclick = async () => {
+        out.textContent = "Resolvendo...";
+        const val = document.getElementById("res-value").value.trim();
+        const typ = document.getElementById("res-type").value.trim();
+        try {
+          const res = await apiFetch(`${state.keysUrl}/keys/resolve?key_value=${encodeURIComponent(val)}&key_type=${encodeURIComponent(typ)}`);
+          const data = await readBody(res);
+          out.textContent = JSON.stringify({ status: res.status, ok: res.ok, body: data }, null, 2);
+          logAudit("keys:resolve", { value: val, type: typ });
+        } catch (e) { out.textContent = e.message; }
+      };
+
+      document.getElementById("port-key").onclick = async () => {
+        out.textContent = "Portando...";
+        const payload = {
+          key_value: document.getElementById("port-value").value.trim(),
+          key_type: document.getElementById("port-type").value.trim(),
+          to_participant_id: document.getElementById("port-part").value.trim(),
+          to_account_id: document.getElementById("port-account").value.trim(),
+        };
+        try {
+          const res = await apiFetch(`${state.keysUrl}/keys/port`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+          const data = await readBody(res);
+          out.textContent = JSON.stringify({ status: res.status, ok: res.ok, body: data }, null, 2);
+          logAudit("keys:port", { value: payload.key_value, type: payload.key_type, to: payload.to_participant_id });
+        } catch (e) { out.textContent = e.message; }
+      };
+
+      document.getElementById("delete-key").onclick = async () => {
+        out.textContent = "Deletando...";
+        const payload = {
+          key_value: document.getElementById("del-value").value.trim(),
+          key_type: document.getElementById("del-type").value.trim(),
+        };
+        try {
+          const res = await apiFetch(`${state.keysUrl}/keys/delete`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+          const data = await readBody(res);
+          out.textContent = JSON.stringify({ status: res.status, ok: res.ok, body: data }, null, 2);
+          logAudit("keys:delete", { value: payload.key_value, type: payload.key_type });
+        } catch (e) { out.textContent = e.message; }
+      };
+    });
+  </script>
+</body>
+</html>

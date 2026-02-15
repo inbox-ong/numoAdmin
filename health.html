@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Numo Admin - Saúde</title>
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="p-4 sm:p-6">
+    <div class="space-y-6">
+      <section class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <p class="text-xs uppercase tracking-wide text-slate-400">Status</p>
+            <h2 class="text-lg font-semibold text-slate-900">Serviços críticos</h2>
+          </div>
+          <button id="run-health" class="bg-primary text-white px-4 py-2 rounded-lg shadow-sm">Rodar health</button>
+        </div>
+        <div class="status-grid" id="service-status"></div>
+      </section>
+
+      <section class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+        <div class="section-header mb-4">
+          <h2 class="text-lg font-semibold text-slate-900">Detalhes</h2>
+        </div>
+        <div id="health-results" class="grid"></div>
+      </section>
+    </div>
+  </main>
+
+  <script src="common.js"></script>
+  <script>
+    const renderCard = (name, r) => `<div class="status-card"><div>${name}</div><div class="${r.ok ? "status-ok" : "status-bad"}">${r.ok ? "OK" : "FAIL"}</div><div class="muted">${r.msg || ""}</div></div>`;
+    async function runHealth() {
+      const container = document.getElementById("health-results");
+      container.innerHTML = "Checando...";
+      const results = await Promise.all([
+        fetchStatus(`${state.coreUrl}/health`),
+        fetchStatus(`${state.dirUrl}/health`, state.dirToken),
+        fetchStatus(`${state.keysUrl}/health`),
+        fetchStatus(`${state.ledgerUrl}/health`),
+      ]);
+      container.innerHTML = `
+        ${renderCard("Core", results[0])}
+        ${renderCard("Directory", results[1])}
+        ${renderCard("Keys", results[2])}
+        ${renderCard("Ledger", results[3])}
+      `;
+      const summary = document.getElementById("service-status");
+      summary.innerHTML = container.innerHTML;
+    }
+    document.addEventListener("DOMContentLoaded", () => {
+      upgradeToTailAdmin({ pageId: "health", title: "Saúde", subtitle: "Status de Core, Directory, Keys e Ledger" });
+      ensureAuth();
+      loadConfigFields();
+      document.getElementById("run-health").onclick = runHealth;
+      runHealth();
+      setNavActive("health");
+    });
+  </script>
+</body>
+</html>

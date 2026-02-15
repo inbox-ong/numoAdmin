@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Numo Admin - Trust</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="p-4 sm:p-6">
+    <div class="space-y-6">
+      <section class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <p class="text-xs uppercase tracking-wide text-slate-400">Trust/PKI</p>
+            <h2 class="text-lg font-semibold text-slate-900">CA & Saúde</h2>
+            <p class="text-sm text-slate-500">Visualize a CA atual, validade e serial.</p>
+          </div>
+          <button id="load-health" class="bg-primary text-white px-3 py-2 rounded-lg shadow-sm">Atualizar</button>
+        </div>
+        <pre id="trust-health" class="code min-h-[140px] rounded-lg"></pre>
+        <div class="flex gap-2">
+          <button id="download-ca" class="bg-slate-100 text-slate-800 px-3 py-2 rounded-lg border border-slate-200">Baixar CA</button>
+          <a href="#" id="ca-link" class="text-sm text-slate-500 underline">Abrir CA em nova aba</a>
+        </div>
+      </section>
+
+      <section class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <p class="text-xs uppercase tracking-wide text-slate-400">Emissão</p>
+            <h2 class="text-lg font-semibold text-slate-900">Emitir certificado</h2>
+            <p class="text-sm text-slate-500">Informe Common Name e usos. TTL padrão 90 dias.</p>
+          </div>
+          <button id="issue-cert" class="bg-primary text-white px-3 py-2 rounded-lg shadow-sm">Emitir</button>
+        </div>
+        <div class="form-grid">
+          <div class="space-y-3">
+            <div class="form-row"><label>Common Name</label><input id="cn" class="w-full" placeholder="bank-123"></div>
+            <div class="form-row"><label>DNS Names (comma)</label><input id="dns" class="w-full" placeholder="numoKeys.local,api.bank.com"></div>
+            <div class="form-row"><label>IPs (comma)</label><input id="ips" class="w-full" placeholder="10.0.0.10,127.0.0.1"></div>
+            <div class="form-row"><label>TTL (horas)</label><input id="ttl" type="number" value="2160" class="w-full"></div>
+            <div class="checks">
+              <label><input type="checkbox" id="client-auth" checked> Client Auth</label>
+              <label><input type="checkbox" id="server-auth"> Server Auth</label>
+            </div>
+          </div>
+          <div>
+            <h3 class="text-sm font-semibold text-slate-800 mb-2">Resultado</h3>
+            <pre id="issue-result" class="code min-h-[220px] rounded-lg"></pre>
+            <div id="issue-downloads" class="flex flex-wrap gap-2 mt-2 text-sm text-slate-600"></div>
+          </div>
+        </div>
+        <p class="text-xs text-slate-500 mt-3">Dica: use Client Auth para participantes, Server Auth para serviços internos (Keys, Core, etc).</p>
+      </section>
+
+      <section class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <p class="text-xs uppercase tracking-wide text-slate-400">Rotação</p>
+            <h2 class="text-lg font-semibold text-slate-900">Rotacionar CA</h2>
+            <p class="text-sm text-slate-500">Gera nova CA self-signed (atenção: requer distribuir nova CA).</p>
+          </div>
+          <button id="rotate-ca" class="bg-danger text-white px-3 py-2 rounded-lg shadow-sm">Rotacionar</button>
+        </div>
+        <div class="form-row"><label>TTL dias (opcional)</label><input id="rotate-ttl" type="number" value="365" class="w-full"></div>
+        <pre id="rotate-result" class="code min-h-[120px] rounded-lg"></pre>
+      </section>
+    </div>
+  </main>
+
+  <script src="common.js"></script>
+  <script>
+    async function loadHealth() {
+      const out = document.getElementById("trust-health");
+      out.textContent = "Consultando...";
+      try {
+        const res = await apiFetch(`${state.trustUrl}/health`);
+        const data = await readBody(res);
+        out.textContent = JSON.stringify({ status: res.status, ok: res.ok, body: data }, null, 2);
+      } catch (e) { out.textContent = e.message; }
+    }
+    async function issueCert() {
+      const body = {
+        common_name: document.getElementById("cn").value.trim(),
+        dns_names: document.getElementById("dns").value.split(",").map(s => s.trim()).filter(Boolean),
+        ips: document.getElementById("ips").value.split(",").map(s => s.trim()).filter(Boolean),
+        ttl_hours: Number(document.getElementById("ttl").value) || 2160,
+        client_auth: document.getElementById("client-auth").checked,
+        server_auth: document.getElementById("server-auth").checked,
+      };
+      const out = document.getElementById("issue-result");
+      out.textContent = "Emitindo...";
+      document.getElementById("issue-downloads").innerHTML = "";
+      try {
+        const res = await apiFetch(`${state.trustUrl}/issue`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const data = await readBody(res);
+        out.textContent = JSON.stringify({ status: res.status, ok: res.ok, body: data }, null, 2);
+        if (data && data.cert_pem && data.key_pem) {
+          logAudit("trust:issue", { cn: body.common_name, ttl: body.ttl_hours, client: body.client_auth, server: body.server_auth });
+          renderDownloads(data);
+        }
+      } catch (e) { out.textContent = e.message; }
+    }
+    async function rotateCA() {
+      const out = document.getElementById("rotate-result");
+      const ttl = document.getElementById("rotate-ttl").value;
+      out.textContent = "Rotacionando...";
+      try {
+        const url = ttl ? `${state.trustUrl}/rotate?ttl_days=${encodeURIComponent(ttl)}` : `${state.trustUrl}/rotate`;
+        const res = await apiFetch(url, { method: "POST" });
+        const data = await readBody(res);
+        out.textContent = JSON.stringify({ status: res.status, ok: res.ok, body: data }, null, 2);
+        logAudit("trust:rotate", { ttl_days: ttl || "default" });
+      } catch (e) { out.textContent = e.message; }
+    }
+    document.addEventListener("DOMContentLoaded", () => {
+      upgradeToTailAdmin({ pageId: "trust", title: "Trust/PKI", subtitle: "Emitir e rotacionar certificados" });
+      ensureAuth();
+      loadConfigFields();
+      setNavActive("trust");
+      document.getElementById("load-health").onclick = loadHealth;
+      document.getElementById("issue-cert").onclick = issueCert;
+      document.getElementById("rotate-ca").onclick = rotateCA;
+      document.getElementById("download-ca").onclick = () => { window.open(`${state.trustUrl}/ca`, "_blank"); };
+      document.getElementById("ca-link").href = `${state.trustUrl}/ca`;
+      loadHealth();
+    });
+
+    function renderDownloads(data) {
+      const container = document.getElementById("issue-downloads");
+      container.innerHTML = "";
+      const files = [
+        { name: "cert.pem", content: data.cert_pem },
+        { name: "key.pem", content: data.key_pem },
+        { name: "ca.pem", content: data.ca_pem },
+      ];
+      files.forEach(f => {
+        if (!f.content) return;
+        const blob = new Blob([f.content], { type: "application/x-pem-file" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = f.name;
+        a.textContent = `Baixar ${f.name}`;
+        a.className = "text-primary underline";
+        a.onclick = () => setTimeout(() => URL.revokeObjectURL(url), 1000);
+        container.appendChild(a);
+      });
+    }
+  </script>
+</body>
+</html>

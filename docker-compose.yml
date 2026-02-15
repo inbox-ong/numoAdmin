@@ -1,0 +1,29 @@
+services:
+  numoadmin:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "4173:4173"
+    environment:
+      PORT: 4173
+      ADMIN_USER: admin
+      ADMIN_PASS: admin
+      ADMIN_DB_URL: postgres://numoAdmin:numoAdmin@admin-db:5432/numoAdmin
+      SESSION_SECRET: changeme
+    depends_on:
+      - admin-db
+
+  admin-db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: numoAdmin
+      POSTGRES_PASSWORD: numoAdmin
+      POSTGRES_DB: numoAdmin
+    ports:
+      - "5435:5432"
+    volumes:
+      - admin_db_data:/var/lib/postgresql/data
+
+volumes:
+  admin_db_data:

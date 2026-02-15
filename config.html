@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Numo Admin - Config</title>
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="p-4 sm:p-6">
+    <div class="max-w-4xl mx-auto space-y-6">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-xs uppercase tracking-wide text-slate-400">Admin</p>
+          <h2 class="text-xl font-semibold text-slate-900">URLs e credenciais</h2>
+          <p class="text-sm text-slate-500">Configure serviços Core, Directory, Keys e Ledger.</p>
+        </div>
+        <button id="save-config" class="inline-flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg shadow-sm">Salvar</button>
+      </div>
+
+      <section class="grid grid-cols-1 gap-6 bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+        <div class="space-y-4">
+          <div class="form-row"><label>Core URL</label><input id="core-url" type="text" class="w-full"></div>
+          <div class="form-row"><label>Directory URL</label><input id="dir-url" type="text" class="w-full"></div>
+          <div class="form-row"><label>Directory Token</label><input id="dir-token" type="text" class="w-full"></div>
+          <div class="form-row"><label>Keys URL</label><input id="keys-url" type="text" class="w-full"></div>
+          <div class="form-row"><label>Ledger URL</label><input id="ledger-url" type="text" class="w-full"></div>
+          <div class="form-row"><label>Trust URL</label><input id="trust-url" type="text" class="w-full"></div>
+          <div class="form-row"><label>Usar proxy backend</label><input id="use-proxy" type="checkbox"></div>
+        </div>
+        <div>
+          <h3 class="text-sm font-semibold text-slate-800 mb-2">Resultado</h3>
+          <pre id="cfg-result" class="code min-h-[120px] rounded-lg"></pre>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script src="common.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      upgradeToTailAdmin({ pageId: "config", title: "Configuração", subtitle: "URLs e credenciais" });
+      ensureAuth();
+      loadConfigFields();
+      const useProxy = document.getElementById("use-proxy");
+      if (useProxy) useProxy.checked = state.useProxy;
+      // load server config
+      fetch("/api/config").then(r => r.json()).then(cfg => {
+        if (cfg.coreUrl) { state.coreUrl = cfg.coreUrl; document.getElementById("core-url").value = cfg.coreUrl; }
+        if (cfg.dirUrl) { state.dirUrl = cfg.dirUrl; document.getElementById("dir-url").value = cfg.dirUrl; }
+        if (cfg.dirToken) { state.dirToken = cfg.dirToken; document.getElementById("dir-token").value = cfg.dirToken; }
+        if (cfg.keysUrl) { state.keysUrl = cfg.keysUrl; document.getElementById("keys-url").value = cfg.keysUrl; }
+        if (cfg.ledgerUrl) { state.ledgerUrl = cfg.ledgerUrl; document.getElementById("ledger-url").value = cfg.ledgerUrl; }
+        if (cfg.trustUrl) { state.trustUrl = cfg.trustUrl; document.getElementById("trust-url").value = cfg.trustUrl; }
+        if (typeof cfg.useProxy === "boolean" && useProxy) { state.useProxy = cfg.useProxy; useProxy.checked = cfg.useProxy; }
+      }).catch(() => {});
+      document.getElementById("save-config").onclick = () => {
+        saveConfigFromPage();
+        const body = {
+          coreUrl: state.coreUrl,
+          dirUrl: state.dirUrl,
+          dirToken: state.dirToken,
+          keysUrl: state.keysUrl,
+          ledgerUrl: state.ledgerUrl,
+          trustUrl: state.trustUrl,
+          useProxy: state.useProxy,
+        };
+        fetch("/api/config", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        }).catch(() => {});
+        document.getElementById("cfg-result").textContent = "Config salva.";
+        logAudit("config:update", body);
+      };
+      setNavActive("config");
+    });
+  </script>
+</body>
+</html>
